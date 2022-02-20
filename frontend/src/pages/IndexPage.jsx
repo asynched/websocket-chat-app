@@ -1,32 +1,49 @@
 import React, { useState } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { useBox } from 'blackbox.js'
 import { PaperAirplaneIcon } from '@heroicons/react/outline'
 
 import { appBox, appMutations } from '@/contexts/app'
-import { getUserImage } from '@/services/images'
+import MessagesContainer from '@/components/messages/MessagesContainer'
+import { preventDefault } from '@/lib/ui/modifiers'
+import UserCard from '@/components/users/UserCard'
 
 const socket = new WebSocket('ws://localhost:1337')
 
 socket.onmessage = (rawMessage) => {
   const message = JSON.parse(rawMessage.data)
-  console.log(message)
 
   switch (message.type) {
+    // Handles the event of a server message
+    // appending it to the context.
     case 'CONNECTION':
     case 'DISCONNECTION':
     case 'MESSAGE': {
       return appMutations.pushMessage(message.data)
     }
 
+    // Handles the event of a revalidation of
+    // the current active clients for the session.
     case 'CONNECTED_CLIENTS': {
       return appMutations.setUsers(message.data)
     }
+
+    // Handles the event of the server passing the
+    // front-end a name, setting it in the context
+    // as the 'user' for the context.
     case 'REGISTRATION': {
       return appMutations.setUser(message.data.username)
     }
   }
 }
 
+/**
+ * # IndexPage
+ *
+ * Index page for the app.
+ *
+ * @returns { JSX.Element } Root page for the application.
+ */
 export default function IndexPage() {
   const app = useBox(appBox)
   const [message, setMessage] = useState('')
@@ -37,46 +54,22 @@ export default function IndexPage() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-chat-black text-white">
-      <nav className="flex w-64 flex-col gap-4 bg-chat-black-900 p-8 2xl:w-96">
-        {app.users.map((user) => (
-          <div className="flex items-center gap-4" key={user.id}>
-            <div className="h-3 w-3 rounded-full bg-green-400"></div>
-            <img
-              className="h-8 w-8 rounded-full"
-              src={getUserImage(user.name)}
-              alt={user.name}
-            />
-            <span>{user.name}</span>
-          </div>
-        ))}
+    <div className="flex h-screen w-full bg-gradient-to-bl from-background-initial to-background-end text-neutral-300">
+      <nav className="flex max-h-screen w-64 flex-col gap-4 overflow-auto border-r border-gray-800 p-8 2xl:w-96">
+        <h1 className="text-4xl font-bold tracking-tighter">Active users</h1>
+        <AnimatePresence>
+          {app.users.map((user) => (
+            <UserCard user={user} key={user.id} />
+          ))}
+        </AnimatePresence>
       </nav>
-      <main className="mx-auto h-full w-full max-w-screen-xl flex-1">
-        <div className="flex h-[calc(100%-5rem)] flex-col gap-4 overflow-auto pt-6">
-          {app.messages.map((message) =>
-            message.user === 'Server' ? (
-              <h1 className="text-center text-neutral-400">
-                {message.message}
-              </h1>
-            ) : (
-              <div
-                className={`rounded-b-2xl  ${
-                  message.user === app.user
-                    ? 'ml-auto mr-4 rounded-tl-2xl bg-chat-blue'
-                    : 'mr-auto ml-4 rounded-tr-2xl bg-chat-gray'
-                } py-3 px-4`}
-                key={message.id}
-              >
-                <p>{message.message}</p>
-              </div>
-            ),
-          )}
-        </div>
+      <main className="mx-auto h-full w-[80%] max-w-screen-md">
+        <MessagesContainer />
         <form
           className="mx-4 mt-auto flex h-20 items-center"
-          onSubmit={(e) => e.preventDefault() || handleSubmit()}
+          onSubmit={preventDefault(handleSubmit)}
         >
-          <div className="mx-auto flex flex-1 gap-4 rounded-2xl bg-chat-gray py-3 px-6">
+          <div className="mx-auto flex flex-1 gap-4 rounded-2xl border border-gray-800 py-3 px-6">
             <input
               type="text"
               placeholder="Your message..."
@@ -89,7 +82,7 @@ export default function IndexPage() {
               aria-label="Send message"
               title="Send message"
             >
-              <PaperAirplaneIcon className="h-6 w-6" />
+              <PaperAirplaneIcon className="h-6 w-6 text-gray-700" />
             </button>
           </div>
         </form>

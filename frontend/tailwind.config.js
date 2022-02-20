@@ -3,10 +3,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'chat-black': '#161819',
-        'chat-black-900': '#181A1B',
-        'chat-gray': '#47494D',
-        'chat-blue': '#387AFF',
+        'message-purple': '#4D38A2',
+        'message-purple-dark': '#1A192E',
+
+        'background-initial': '#161819',
+        'background-end': '#18132A',
       },
     },
   },
