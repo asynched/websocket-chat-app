@@ -1,20 +1,18 @@
-const ws = require('ws')
-const { v4 } = require('uuid')
-const http = require('http')
-const signale = require('signale')
-const { Chance } = require('chance')
+import './config'
 
-const $ = (data) => JSON.stringify(data)
+import ws from 'ws'
+import http from 'http'
+import { v4 as uuid } from 'uuid'
+import { Signale } from 'signale'
 
-const noop = (_req, _res) => void 0
+import { f, o, r } from '@/utils'
+import { PORT } from '@/config/globals'
 
-const logger = new signale.Signale({
+const server = http.createServer(f.noop)
+
+const logger = new Signale({
   scope: 'server',
 })
-
-const chance = new Chance()
-
-const server = http.createServer(noop)
 
 const socketServer = new ws.Server({
   server,
@@ -25,30 +23,44 @@ const socketServer = new ws.Server({
  */
 const sockets = []
 
-socketServer.on('connection', (socket) => {
-  socket.name = chance.twitter()
-  socket.id = v4()
+socketServer.on('connection', (client) => {
+  // Assigns the socket a name
+  // and an identifier to be
+  // used later.
+  client.name = r.getRandomUsername()
+  client.id = uuid()
 
-  logger.success(`Client '${socket.name}' connected`)
+  logger.success(`Client '${client.name}' connected`)
   logger.info(`Broadcasting message to connected sockets.`)
 
-  sockets.push(socket)
+  // Appends the socket to the
+  // sockets array (application)
+  // context.
+  sockets.push(client)
 
-  sockets.forEach(($socket) => {
-    $socket.send(
-      $({
+  // Broadcasts to all sockets
+  // that a new client has
+  // connected.
+  sockets.forEach((socket) => {
+    // Send a message of a connection type,
+    // notifying that a new client has
+    // connected.
+    socket.send(
+      o.toString({
         type: 'CONNECTION',
         data: {
           user: 'Server',
-          message: `Client '${socket.name}' connected`,
-          id: v4(),
+          message: `${client.name} connected`,
+          id: uuid(),
           date: new Date().toUTCString(),
         },
       })
     )
 
-    $socket.send(
-      $({
+    // Sends a message of type 'CONNECTED_CLIENTS',
+    // returning all the current connected clients.
+    socket.send(
+      o.toString({
         type: 'CONNECTED_CLIENTS',
         data: sockets.map((socket) => ({
           name: socket.name,
@@ -58,26 +70,32 @@ socketServer.on('connection', (socket) => {
     )
   })
 
-  socket.send(
-    $({
+  // Sends a registration message, this is
+  // mainly to signal to the front-end what
+  // the name of the sender (or current user)
+  // should be.
+  client.send(
+    o.toString({
       type: 'REGISTRATION',
       data: {
-        username: socket.name,
+        username: client.name,
       },
     })
   )
 
-  socket.on('message', (message) => {
-    logger.info(`Client '${socket.name}' sent the message: "${message}"`)
+  client.on('message', (message) => {
+    logger.info(`Client '${client.name}' sent the message: "${message}"`)
 
+    // On the event of a message, broadcast
+    // it to all clients.
     sockets.forEach(($socket) => {
       $socket.send(
-        $({
+        o.toString({
           type: 'MESSAGE',
           data: {
-            user: socket.name,
+            user: client.name,
             message: message.toString(),
-            id: v4(),
+            id: uuid(),
             date: new Date().toUTCString(),
           },
         })
@@ -85,25 +103,32 @@ socketServer.on('connection', (socket) => {
     })
   })
 
-  socket.on('close', () => {
-    logger.warn(`Client '${socket.name}' has disconnected.`)
-    sockets.splice(sockets.indexOf(socket), 1)
+  client.on('close', () => {
+    logger.warn(`Client '${client.name}' has disconnected.`)
 
+    // When disconnected, remove the client
+    // from the sockets array.
+    sockets.splice(sockets.indexOf(client), 1)
+
+    // Broadcast the event of a disconnected
+    // client to all other connected ones.
     sockets.forEach(($socket) => {
       $socket.send(
-        $({
+        o.toString({
           type: 'DISCONNECTION',
           data: {
             user: 'Server',
-            message: `Client '${socket.name}' disconnected`,
-            id: v4(),
+            message: `Client '${client.name}' disconnected`,
+            id: uuid(),
             date: new Date().toUTCString(),
           },
         })
       )
 
+      // Send a message for revalidation to the front-end
+      // on the event of a disconnection for a client.
       $socket.send(
-        $({
+        o.toString({
           type: 'CONNECTED_CLIENTS',
           data: sockets.map((socket) => ({
             name: socket.name,
@@ -115,4 +140,4 @@ socketServer.on('connection', (socket) => {
   })
 })
 
-server.listen(1337, () => logger.info('Server started on port :1337'))
+server.listen(1337, () => logger.info(`Server started on port :${PORT} 🔥`))
