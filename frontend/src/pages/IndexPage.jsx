@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useBox } from 'blackbox.js'
-import { PaperAirplaneIcon } from '@heroicons/react/outline'
 
-import { appBox, appMutations } from '@/contexts/app'
-import MessagesContainer from '@/components/messages/MessagesContainer'
 import { preventDefault } from '@/lib/ui/modifiers'
+import { appBox, appMutations } from '@/contexts/app'
+
 import UserCard from '@/components/users/UserCard'
+import { PaperAirplaneIcon } from '@heroicons/react/outline'
+import MessagesContainer from '@/components/messages/MessagesContainer'
 
 const socket = new WebSocket('ws://localhost:1337')
 
